@@ -1,0 +1,190 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\项目\\dezhou\\allin-contracts\\contracts\\AllinToken.sol": {
+      "lastModificationDate": 1773405889266,
+      "contentHash": "01b6191b535a0dcf4b28d53b95a3397f",
+      "sourceName": "contracts/AllinToken.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AllinToken"
+      ]
+    },
+    "D:\\项目\\dezhou\\allin-contracts\\contracts\\GameTreasuryVault.sol": {
+      "lastModificationDate": 1773313457220,
+      "contentHash": "5fad071dde725b28db0d96dc2406ea1c",
+      "sourceName": "contracts/GameTreasuryVault.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "GameTreasuryVault",
+        "IGameTreasuryToken",
+        "IRecoverableToken"
+      ]
+    },
+    "D:\\项目\\dezhou\\allin-contracts\\contracts\\PrizePoolVault.sol": {
+      "lastModificationDate": 1773382060191,
+      "contentHash": "42d628394c7a498b09d1e98078744030",
+      "sourceName": "contracts/PrizePoolVault.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IPrizePoolRecoverableToken",
+        "PrizePoolVault"
+      ]
+    },
+    "D:\\项目\\dezhou\\allin-contracts\\contracts\\TaxForwarder.sol": {
+      "lastModificationDate": 1773400509022,
+      "contentHash": "f5b9febc3a9526761150454613f671c3",
+      "sourceName": "contracts/TaxForwarder.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IForwarderRecoverableToken",
+        "TaxForwarder"
+      ]
+    },
+    "D:\\项目\\dezhou\\allin-contracts\\contracts\\AllinGame.sol": {
+      "lastModificationDate": 1773418966831,
+      "contentHash": "33bcf7a94bf9a0101940154434fd32fb",
+      "sourceName": "contracts/AllinGame.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AllinGame",
+        "IERC20"
+      ]
+    }
+  }
+}

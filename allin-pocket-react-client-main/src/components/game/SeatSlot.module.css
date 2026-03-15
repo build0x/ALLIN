@@ -1,0 +1,156 @@
+
+.root :global(.SeatFrame) {
+  position: relative;
+}
+
+.root :global(.float-right) {
+  float: right;
+}
+
+.root :global(.float-left) {
+  float: left;
+}
+
+.root :global(.bet-pos) {
+  position: absolute;
+  bottom: 10%;
+}
+
+.root :global(.bet-right) {
+  float: left;
+  left: 90%;
+  top: 30%;
+}
+
+.root :global(.bet-left) {
+  float: left;
+  left: -25%;
+  top: 30%;
+}
+
+.root :global(.betTexts) {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.root :global(.player-action-pos) {
+  position: absolute;
+  z-index: 10;
+  top: -22%;
+}
+
+@media (max-width: 768px) {
+  .root :global(.SeatFrame) {
+    transform-origin: center center;
+  }
+
+  .root :global(.bet-right) {
+    left: 68%;
+    top: 38%;
+  }
+
+  .root :global(.bet-left) {
+    left: -2%;
+    top: 38%;
+  }
+
+  .root :global(.betTexts) {
+    font-size: 12px;
+  }
+
+  .root :global(.player-action-pos) {
+    top: -10%;
+  }
+
+  .root :global(.seat-pos-s3) {
+    transform: translate(-12px, -8px) scale(0.94);
+  }
+
+  .root :global(.seat-pos-s4) {
+    transform: translate(12px, -8px) scale(0.94);
+  }
+
+  .root :global(.seat-pos-s2) {
+    transform: translate(-18px, 2px) scale(0.92);
+  }
+
+  .root :global(.seat-pos-s5) {
+    transform: translate(18px, 2px) scale(0.92);
+  }
+
+  .root :global(.seat-pos-s1) {
+    transform: translate(-10px, 12px) scale(0.92);
+  }
+
+  .root :global(.seat-pos-s6) {
+    transform: translate(10px, 12px) scale(0.92);
+  }
+
+  .root :global(.mobile-seat-slot) {
+    position: relative;
+    width: 100%;
+    z-index: 2;
+    transform: none !important;
+  }
+
+  .root :global(.mobile-seat-slot-top) {
+    transform: scale(0.9) !important;
+  }
+
+  .root :global(.mobile-seat-slot-upper-left) {
+    transform: scale(0.9) !important;
+  }
+
+  .root :global(.mobile-seat-slot-upper-right) {
+    transform: scale(0.9) !important;
+  }
+
+  .root :global(.mobile-seat-slot-lower-left) {
+    transform: scale(0.92) !important;
+  }
+
+  .root :global(.mobile-seat-slot-lower-right) {
+    transform: scale(0.92) !important;
+  }
+
+  .root :global(.mobile-seat-slot-hero) {
+    width: 100%;
+    transform: scale(1) !important;
+    z-index: 3;
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-top .bet-top) {
+    left: 50%;
+    top: 102%;
+    transform: translateX(-50%);
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-upper-left .bet-left-arc) {
+    left: 92%;
+    top: 70%;
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-upper-right .bet-right-arc) {
+    left: -18%;
+    top: 70%;
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-lower-left .bet-left-lower) {
+    left: 92%;
+    top: 8%;
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-lower-right .bet-right-lower) {
+    left: -18%;
+    top: 8%;
+  }
+
+  .root :global(.mobile-seat-slot.mobile-seat-slot-hero .bet-bottom) {
+    left: 50%;
+    top: -30%;
+    transform: translateX(-50%);
+  }
+}

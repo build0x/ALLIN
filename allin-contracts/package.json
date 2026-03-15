@@ -1,0 +1,28 @@
+{
+  "name": "allin-contracts",
+  "version": "1.0.0",
+  "description": "ALLIN BSC 合约（AllinToken / GameTreasuryVault / AllinGame）",
+  "private": true,
+  "author": "build0x (https://x.com/Allin_game)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/build0x/ALLIN.git"
+  },
+  "bugs": {
+    "url": "https://github.com/build0x/ALLIN/issues"
+  },
+  "homepage": "https://github.com/build0x/ALLIN#readme",
+  "scripts": {
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy-local.js --network localhost",
+    "deploy:mainnet": "hardhat run scripts/deploy-mainnet.js --network bsc"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.4.0",
+    "hardhat": "^2.22.0"
+  }
+}

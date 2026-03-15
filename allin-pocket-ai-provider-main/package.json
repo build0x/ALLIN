@@ -1,0 +1,35 @@
+{
+  "name": "poker-pocket-ai-provider",
+  "version": "1.0.0",
+  "description": "Poker Pocket TS backend AI provider",
+  "main": "index.js",
+  "scripts": {
+    "start:dev": "nodemon",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/norkator/poker-pocket-ai-provider.git"
+  },
+  "author": "Martin Kankaanranta (norkator)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/norkator/poker-pocket-ai-provider/issues"
+  },
+  "homepage": "https://github.com/norkator/poker-pocket-ai-provider#readme",
+  "dependencies": {
+    "axios": "1.7.9",
+    "dotenv": "16.4.7",
+    "pino": "9.6.0",
+    "pino-pretty": "13.0.0",
+    "nodemon": "3.1.9",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@types/ws": "8.5.13",
+    "nodemon": "3.1.9",
+    "ts-node": "10.9.2",
+    "typescript": "5.7.3"
+  }
+}

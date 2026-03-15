@@ -1,0 +1,827 @@
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import TableContext from './tableContext';
+import socketContext from '@/context/websocket/socketContext';
+import authContext from '@/context/auth/authContext';
+import NewRoom, {
+  NewRoomInfo,
+  NewBoard,
+  NewCtrl,
+  initBoard,
+  initCtrl,
+  roomUpdate,
+} from '@/components/game/domains/Room';
+import { initSeats } from '@/components/game/domains/Seat';
+import Player from '@/components/game/domains/Player';
+import {
+  playChipsHandleFive,
+  playCollectChipsToPot,
+  playCardFoldOne,
+  playCheckSound,
+  playCardPlaceChipsOne,
+  playCardSlideSix,
+} from '@/components/Audio';
+import { setupSeats } from '@/components/game/domains/Seat';
+import modalContext from '@/context/modal/modalContext';
+import FCDPickCardsModal from '@/modals/FCDPickCardsModal';
+import contentContext from '@/context/content/contentContext';
+import { toast } from 'react-toastify';
+import { LS_AUTO_CHECK_ENABLED, LS_AUTO_PLAY_ENABLED } from '@/components/game/SettingsBar';
+import { LS_ENABLE_SOUNDS_STATE } from '@/components/navigation/Navbar';
+import { formatMoney } from '@/utils/Money';
+
+let tempPlayers = [];
+
+const TableState = ({ children }) => {
+  const socketCtx = useContext(socketContext) ?? {};
+  const { t } = useContext(contentContext);
+  const socket = socketCtx.socket ?? null;
+  const playerId = socketCtx.playerId ?? -1;
+  const socketDisconnected = socketCtx.socketDisconnected ?? null;
+  const authCtx = useContext(authContext) ?? {};
+  const setMyDashboardDataRefresh = authCtx.setMyDashboardDataRefresh ?? (() => {});
+  const modalCtx = useContext(modalContext) ?? {};
+  const openView = modalCtx.openView ?? (() => {});
+  const openModal = modalCtx.openModal ?? (() => {});
+  const closeModal = modalCtx.closeModal ?? (() => {});
+
+  const [enableSounds, setEnableSounds] = useState(() => {
+    const storedValue = localStorage.getItem(LS_ENABLE_SOUNDS_STATE);
+    if (storedValue === null || storedValue === 'undefined') {
+      return true;
+    }
+
+    return storedValue === 'true';
+  });
+  const enableSoundsRef = useRef(enableSounds);
+
+  const [autoCheck, setAutoCheck] = useState(() => {
+    const storedValue = localStorage.getItem(LS_AUTO_CHECK_ENABLED);
+    return storedValue === 'true';
+  });
+
+  const [autoPlay, setAutoPlay] = useState(() => {
+    const storedValue = localStorage.getItem(LS_AUTO_PLAY_ENABLED);
+    return storedValue === 'true';
+  });
+
+  const [tableId, setTableId] = useState(-1);
+  const [players, setPlayers] = useState([]);
+  const [heroTurn, setHeroTurn] = useState({ data: null });
+  const [roundSettlement, setRoundSettlement] = useState(null);
+  const [settlementEffectVisible, setSettlementEffectVisible] = useState(false);
+
+  const [actionButtonsEnabled, setActionButtonsEnabled] = useState(false);
+
+  const [roomInfo, setRoomInfo] = useState({ data: NewRoomInfo() });
+  const [board, setBoard] = useState({ data: NewBoard(() => enableSoundsRef.current) });
+  const [ctrl, setCtrl] = useState({ data: NewCtrl(() => enableSoundsRef.current) });
+
+  const roomRef = useRef(
+    NewRoom(
+      NewRoomInfo(),
+      NewBoard(() => enableSoundsRef.current),
+      NewCtrl(() => enableSoundsRef.current)
+    )
+  );
+
+  const seatsRef = useRef(setupSeats());
+  const [seats, setSeats] = useState({ data: seatsRef.current });
+
+  const tableIdRef = useRef(tableId);
+
+  useEffect(() => {
+    tableIdRef.current = tableId;
+  }, [tableId, setTableId]);
+
+  useEffect(() => {
+    enableSoundsRef.current = enableSounds;
+  }, [enableSounds, setEnableSounds]);
+
+  // 结算效果（牌桌内动画）显示约 4 秒后隐藏
+  useEffect(() => {
+    if (!roundSettlement) {
+      setSettlementEffectVisible(false);
+      return;
+    }
+    setSettlementEffectVisible(true);
+    const t = setTimeout(() => setSettlementEffectVisible(false), 4000);
+    return () => clearTimeout(t);
+  }, [roundSettlement]);
+
+  useEffect(() => {
+    setPlayers([]);
+  }, [socketDisconnected]);
+
+  const autoPlayRef = useRef(autoPlay);
+  useEffect(() => {
+    autoPlayRef.current = autoPlay;
+  }, [autoPlay, setAutoPlay]);
+
+  const autoCheckRef = useRef(autoCheck);
+  useEffect(() => {
+    autoCheckRef.current = autoCheck;
+  }, [autoCheck, setAutoCheck]);
+
+  const playerIdRef = useRef(-1);
+  const resultsShownRef = useRef(false);
+  const pendingXpRewardRef = useRef(null);
+
+  useEffect(() => {
+    if (socket) {
+      regRoomHandler(socket);
+    }
+  }, [socket]);
+
+  useEffect(() => {
+    playerIdRef.current = playerId;
+  }, [playerId]);
+
+  // console debugging functionality
+  useEffect(() => {
+    // browser console, type: discardAndDraw(['A♠', 'K♣', 'Q♥', 'J♦', '10♠']);
+    window.discardAndDraw = (cards) => discardAndDraw({ cards });
+    return () => {
+      delete window.discardAndDraw;
+    };
+  }, []);
+
+  const refreshSeats = () => {
+    setSeats({ data: seats.data });
+  };
+
+  const holeCardsDelayMillis = 200;
+  const cardSetDelayMillis = 300;
+
+  function regRoomHandler(socket) {
+    // Example: {"playerCount":3,"roomMinBet":10,"middleCards":["Q♠","6♦","9♠","4♠"],"playersData":[{"playerId":0,"playerName":"Bot362","playerMoney":6462.5,"isDealer":false},{"playerId":1,"playerName":"Bot265","playerMoney":9902.5,"isDealer":false},{"playerId":2,"playerName":"Bot966","playerMoney":13500,"isDealer":true}]}
+    socket.handle('tableParams', (jsonData) => tableParameters(jsonData.data));
+
+    // Hole Cards  ({"players":[{"playerId":0,"cards":["3♠","4♥"]}]})
+    socket.handle('holeCards', (jsonData) => holeCards(jsonData.data));
+
+    // Status update ({"totalPot":30,"currentStatus":"Betting round 4","middleCards":["2♦","4♥","5♦","A♠","3♠"],"playersData":[{"playerId":1,"playerName":"Anon250","playerMoney":10000,"totalBet":0,"isPlayerTurn":false,"isFold":true,"timeBar":0},{"playerId":2,"playerName":"Anon93","playerMoney":9970,"totalBet":30,"isPlayerTurn":true,"isFold":false,"timeBar":0}],"isCallSituation":false,"isResultsCall":false})
+    socket.handle('statusUpdate', (jsonData) => statusUpdate(jsonData.data));
+
+    // Example: {"playerId":0,"actionText":"raise"}
+    socket.handle('lastUserAction', (jsonData) => playerLastActionHandler(jsonData.data));
+
+    // The Flop (theFlop: {"middleCards":["8♣","5♣","2♥"]})
+    socket.handle('theFlop', (jsonData) => theFlop(jsonData.data));
+
+    // The turn (theTurn: {"middleCards":["Q♦","J♥","3♥","6♠"]})
+    socket.handle('theTurn', (jsonData) => theTurn(jsonData.data));
+
+    // The river (theRiver: {"middleCards":["8♥","8♦","J♣","J♠","7♣"]})
+    socket.handle('theRiver', (jsonData) => theRiver(jsonData.data));
+
+    socket.handle('collectChipsToPot', (jsonData) => collectChipsToPotAction());
+
+    // Example: {"players":[{"playerId":0,"cards":["6♦","A♦"]},{"playerId":1,"cards":["7♣","7♠"]}]}
+    socket.handle('allPlayersCards', (jsonData) => allPlayersCards(jsonData.data));
+
+    socket.handle('audioCommand', (jsonData) => audioCommand(jsonData.data));
+    socket.handle('onXPGained', (jsonData) => xpGained(jsonData.data));
+
+    socket.handle('dealHoleCards', (jsonData) => dealHoleCards(jsonData.data)); // five card draw
+
+    socket.handle('discardAndDraw', (jsonData) => discardAndDraw(jsonData.data)); // five card draw
+
+    socket.handle('newCards', (jsonData) => newPlayerCards(jsonData.data)); // five card draw after discard and draw
+  }
+
+  const xpGained = (xpData) => {
+    const xpReward = {
+      amount: Number(xpData.amount || 0),
+      text: `+${Number(xpData.amount || 0)} ${t(xpData.translationKey)}`,
+    };
+
+    pendingXpRewardRef.current = xpReward;
+    setMyDashboardDataRefresh({});
+
+    setRoundSettlement((previous) =>
+      previous
+        ? {
+            ...previous,
+            xpReward,
+          }
+        : previous
+    );
+  };
+
+  // init room data
+  const tableParameters = (rData) => {
+    setMyDashboardDataRefresh({}); // Added so refreshing xp needed counter updates automatically
+
+    initBoard(roomRef.current.board);
+    initCtrl(roomRef.current.ctrl);
+    initSeats(seatsRef.current);
+
+    boardParser(rData, roomRef.current.board);
+    playerParser(rData);
+    roomUpdate(rData, roomRef.current);
+
+    switch (rData.game) {
+      case 'HOLDEM':
+        roomRef.current.board.setShowMiddleCards(true);
+        break;
+      case 'FIVE_CARD_DRAW':
+      case 'BOTTLE_SPIN':
+        roomRef.current.board.setShowMiddleCards(false);
+        break;
+    }
+
+    statusPlayerUpdate(rData, tempPlayers);
+    setRoomInfo({ data: roomRef.current.roomInfo });
+    setCtrl({ data: roomRef.current.ctrl });
+    setBoard({ data: roomRef.current.board });
+    setSeats({ data: seatsRef.current });
+  };
+
+  const boardParser = (rData, board) => {
+    const gameStarted = rData.gameStarted;
+    if (rData.middleCards?.length > 0) {
+      for (let m = 0; m < rData.middleCards.length; m++) {
+        board.setMiddleCard(m, rData.middleCards[m], gameStarted);
+      }
+    }
+  };
+
+  const playerParser = (rData) => {
+    const gameStarted = rData.gameStarted;
+    const playerCount = rData.playerCount;
+
+    const playerIds = [],
+      playerNames = [],
+      playerMoneys = [],
+      playerIsDealer = [];
+    for (let i = 0; i < rData.playersData.length; i++) {
+      playerIds.push(Number(rData.playersData[i].playerId));
+      playerNames.push(rData.playersData[i].playerName);
+      playerMoneys.push(Number(rData.playersData[i].playerMoney));
+      playerIsDealer.push(rData.playersData[i].isDealer);
+    }
+
+    switch (playerCount) {
+      case 1:
+        giveSeats(
+          playerCount,
+          [0],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      case 2:
+        giveSeats(
+          playerCount,
+          rData.game === 'BOTTLE_SPIN' ? [0, 1] : [0, 3],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      case 3:
+        giveSeats(
+          playerCount,
+          rData.game === 'BOTTLE_SPIN' ? [0, 1, 2] : [0, 2, 3],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      case 4:
+        giveSeats(
+          playerCount,
+          rData.game === 'BOTTLE_SPIN' ? [0, 1, 2, 3] : [0, 2, 3, 5],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      case 5:
+        giveSeats(
+          playerCount,
+          rData.game === 'BOTTLE_SPIN' ? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 5],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      case 6:
+        giveSeats(
+          playerCount,
+          [0, 1, 2, 3, 4, 5],
+          playerIds,
+          playerNames,
+          playerMoneys,
+          playerIsDealer,
+          gameStarted
+        );
+        break;
+      default:
+        break;
+    }
+  };
+
+  function giveSeats(
+    playerCount,
+    seatPositions,
+    playerIds,
+    playerNames,
+    playerMoneys,
+    playerIsDealer,
+    gameStarted
+  ) {
+    tempPlayers = []; // initialize array
+
+    const players = tempPlayers;
+    for (let i = 0; i < playerCount; i++) {
+      players.push(
+        new Player(seats.data[seatPositions[i]], playerIds[i], playerNames[i], playerMoneys[i])
+      );
+      const player = players[i];
+      player.initPlayer(gameStarted);
+      if (playerIsDealer[i]) {
+        player.setPlayerAsDealer();
+      }
+    }
+
+    return players;
+  }
+
+  const statusPlayerUpdate = (sData, players) => {
+    for (let i = 0; i < sData.playersData.length; i++) {
+      const playerRaw = sData.playersData[i];
+      const pMoney = playerRaw.playerMoney;
+      const pTotalBet = playerRaw.totalBet;
+      const pTurn = playerRaw.isPlayerTurn;
+      const pIsFold = playerRaw.isFold;
+      // const pTimeBar = playerRaw.timeBar;
+      const pTimeLeft = playerRaw.timeLeft;
+
+      const pId = playerRaw.playerId;
+
+      let player = players.find((currentPlayer) => Number(currentPlayer?.playerId) === Number(pId));
+      if (!player) {
+        player = players[i];
+      }
+      if (!player || !player.playerSeat) {
+        continue;
+      }
+
+      player.setTimeBar(pTimeLeft);
+      player.actionsAvailable = playerRaw.actionsAvailable;
+      if (
+        Number(pId) === Number(playerIdRef.current) &&
+        player.tempBet > 0 &&
+        !sData.isResultsCall
+      ) {
+        // Hero Do nothing
+      } else {
+        player.setPlayerMoney(pMoney);
+        if (!sData.collectingPot) {
+          player.setPlayerTotalBet(pTotalBet);
+        }
+      }
+      if (pIsFold) {
+        if (!player.isFold) {
+          if (enableSoundsRef.current) {
+            playCardFoldOne.play();
+          }
+          player.setPlayerFold();
+        }
+      }
+
+      if (Number(pId) === Number(playerIdRef.current)) {
+        // Hero
+        player.setPlayerTurn(pTurn, sData.isCallSituation);
+        roomRef.current.ctrl.actionBtnVisibility(pTurn, false);
+
+        setActionButtonsEnabled(true);
+        if (pTurn) {
+          setHeroTurn({ data: player });
+        }
+      }
+    }
+    if (sData.isResultsCall) {
+      // showdown round
+      if (enableSoundsRef.current) {
+        playChipsHandleFive.play();
+      }
+
+      let isPlaySound = false;
+
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+
+        player.tempBet = 0;
+        player.setPlayerTotalBet(0);
+        if (player.playerId !== playerIdRef.current) {
+          // villain
+          if (!player.isFold) {
+            player.setPlayerCards();
+            player.setShowCards(true);
+            isPlaySound = true;
+          }
+        }
+        for (let w = 0; w < sData.roundWinnerPlayerIds.length; w++) {
+          if (Number(sData.roundWinnerPlayerIds[w]) === Number(player.playerId)) {
+            player.startWinnerGlowAnimation();
+            if (sData.roundWinnerPlayerCards) {
+              let cl = sData.roundWinnerPlayerCards.length;
+              for (let c = 0; c < cl; c++) {
+                player.startWinnerGlowCardsAnimation(
+                  sData.roundWinnerPlayerCards[c],
+                  roomRef.current.board
+                );
+              }
+            }
+          }
+        }
+      }
+
+      if (isPlaySound && enableSoundsRef.current) {
+        playCardSlideSix.play();
+      }
+    }
+
+    if (sData.isResultsCall && !resultsShownRef.current) {
+      const winnerPayouts = sData.roundWinnerPayouts || [];
+      const heroPayout = winnerPayouts.find(
+        (winner) => Number(winner.playerId) === Number(playerIdRef.current)
+      );
+
+      const settlement = heroPayout
+        ? {
+            amount: Number(heroPayout.amount || 0),
+            title: '你赢了',
+            text: `赢得 ${formatMoney(heroPayout.amount || 0)}`,
+            tone: 'win',
+            handName: heroPayout.handName || null,
+            pots: sData.potBreakdown || [],
+            xpReward: pendingXpRewardRef.current,
+            winnerPlayerId: playerIdRef.current,
+            winnerAmount: Number(heroPayout.amount || 0),
+          }
+        : winnerPayouts.length > 1
+          ? {
+              amount: 0,
+              title: '多人分池',
+              text: `${winnerPayouts
+                .map((winner) => winner.playerName)
+                .join(' / ')}，各赢 ${formatMoney(winnerPayouts[0].amount || 0)}`,
+              tone: 'lose',
+              handName: winnerPayouts[0].handName || null,
+              pots: sData.potBreakdown || [],
+              xpReward: pendingXpRewardRef.current,
+              winnerPlayerId: null,
+              winnerAmount: null,
+            }
+          : winnerPayouts.length === 1
+            ? {
+                amount: 0,
+                title: '本局赢家',
+                text: `${winnerPayouts[0].playerName}，赢得 ${formatMoney(
+                  winnerPayouts[0].amount || 0
+                )}`,
+                tone: 'lose',
+                handName: winnerPayouts[0].handName || null,
+                pots: sData.potBreakdown || [],
+                xpReward: pendingXpRewardRef.current,
+                winnerPlayerId: winnerPayouts[0].playerId,
+                winnerAmount: Number(winnerPayouts[0].amount || 0),
+              }
+            : {
+                amount: 0,
+                title: '本局结算',
+                text: sData.roundResultMessage || '本局结算完成',
+                tone: 'even',
+                handName: null,
+                pots: sData.potBreakdown || [],
+                xpReward: pendingXpRewardRef.current,
+                winnerPlayerId: null,
+                winnerAmount: null,
+              };
+
+      resultsShownRef.current = true;
+      setRoundSettlement(settlement);
+    } else if (!sData.isResultsCall) {
+      resultsShownRef.current = false;
+      setRoundSettlement(null);
+      setSettlementEffectVisible(false);
+      pendingXpRewardRef.current = null;
+    }
+
+    setPlayers(players);
+  };
+
+  const statusUpdate = (sData) => {
+    roomUpdate(sData, roomRef.current);
+    setRoomInfo({ data: roomRef.current.roomInfo });
+    setCtrl({ data: roomRef.current.ctrl });
+    statusPlayerUpdate(sData, tempPlayers);
+    setSeats({ data: seats.data });
+    setBoard({ data: roomRef.current.board });
+  };
+
+  // ----------------------------------------------------
+  const holeCards = (pData) => {
+    const players = tempPlayers;
+    for (let p = 0; p < pData.players.length; p++) {
+      for (let i = 0; i < players.length; i++) {
+        const playerRaw = pData.players[p];
+
+        const player = players[i];
+        if (Number(player.playerId) === Number(playerRaw.playerId)) {
+          player.playerCards.push(playerRaw.cards[0]);
+          player.playerCards.push(playerRaw.cards[1]);
+          player.setPuffInFastEnabled(true);
+        }
+      }
+    }
+    holeCardsAsync(players).then(() => {
+      const hero = players.find(
+        (p) => p && Number(p.playerId) === Number(playerIdRef.current)
+      );
+      if (hero && hero.playerCards && hero.playerCards.length >= 2) {
+        if (!hero.playerSeat.seatCard0 || !hero.playerSeat.seatCard1) {
+          hero.setPlayerCard(0);
+          hero.setPlayerCard(1);
+          setSeats({ data: seats.data });
+        }
+      }
+    });
+  };
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function holeCardsAsync(players) {
+    for (let c = 0; c < 2; c++) {
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        const isHero = Number(player.playerId) === Number(playerIdRef.current);
+        const shouldShowCards =
+          !player.isFold || (isHero && player.playerCards && player.playerCards.length > c);
+        if (shouldShowCards) {
+          await sleep(holeCardsDelayMillis);
+          player.setPlayerCard(c);
+          setSeats({ data: seats.data });
+          if (enableSoundsRef.current) {
+            playCardSlideSix.play();
+          }
+        }
+      }
+    }
+  }
+
+  // Handles last player action animation
+  function playerLastActionHandler(aData) {
+    const players = tempPlayers;
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      const playerSeat = player.playerSeat;
+
+      if (playerSeat.seatLastAction != null) {
+        playerSeat.setLastAction(null);
+        playerSeat.refreshLastAction = {};
+      }
+      if (player.playerId === aData.playerId) {
+        playerSeat.setLastAction(aData.actionText);
+        playerSeat.refreshLastAction = {};
+      }
+    }
+    setSeats({ data: seats.data });
+  }
+
+  async function theFlop(fData) {
+    const players = tempPlayers;
+    for (let i = 0; i < players.length; i++) {
+      players[i].setPuffInFastEnabled(false);
+    }
+    const board = roomRef.current.board;
+    board.middleCardsPuffIn = [false, false, false, false, false];
+    setBoard({ data: { ...board } });
+    for (let i = 0; i < 3; i++) {
+      board.middleCards[i] = fData.middleCards[i];
+      board.middleCardsPuffIn[i] = true;
+      setBoard({ data: { ...board } });
+      if (enableSoundsRef.current) {
+        playCardSlideSix.play();
+      }
+      await new Promise((resolve) => setTimeout(resolve, cardSetDelayMillis));
+    }
+  }
+
+  async function theTurn(tData) {
+    const board = roomRef.current.board;
+    board.middleCards[3] = tData.middleCards[3];
+    board.middleCardsPuffIn[3] = true;
+    setBoard({ data: { ...board } });
+    if (enableSoundsRef.current) {
+      playCardSlideSix.play();
+    }
+  }
+
+  function theRiver(rData) {
+    const board = roomRef.current.board;
+    board.middleCards[4] = rData.middleCards[4];
+    board.middleCardsPuffIn[4] = true;
+    setBoard({ data: { ...board } });
+    if (enableSoundsRef.current) {
+      playCardSlideSix.play();
+    }
+  }
+
+  // Backend want's to run collect chips to pot animation
+  async function collectChipsToPotAction() {
+    if (enableSoundsRef.current) {
+      playCollectChipsToPot.play();
+    }
+    const players = tempPlayers;
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      if (player.playerTotalBet > 0) {
+        player.playerSeat.seatCollectChipsToPot();
+        setSeats({ data: seats.data });
+      }
+    }
+  }
+
+  // Receive all players cards before results for showing them
+  function allPlayersCards(cData) {
+    const players = tempPlayers;
+    for (let p = 0; p < cData.players.length; p++) {
+      for (let i = 0; i < players.length; i++) {
+        const playRaw = cData.players[p];
+        const player = players[i];
+
+        if (Number(player.playerId) === Number(playRaw.playerId)) {
+          player.playerCards = []; // clear first
+          for (let card of playRaw.cards) {
+            player.playerCards.push(card);
+          }
+        }
+      }
+    }
+  }
+
+  function audioCommand(aData) {
+    if (enableSoundsRef.current) {
+      switch (aData.command) {
+        case 'fold':
+          playCardFoldOne.play();
+          break;
+        case 'check':
+          playCheckSound.play();
+          break;
+        case 'call':
+          playCardPlaceChipsOne.play();
+          break;
+        case 'raise':
+          playCardPlaceChipsOne.play();
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  // ----------------------------------------------------
+
+  async function dealHoleCards(pData) {
+    const players = tempPlayers;
+    for (let p = 0; p < pData.players.length; p++) {
+      for (let i = 0; i < players.length; i++) {
+        const playerRaw = pData.players[p];
+
+        const player = players[i];
+        if (Number(player.playerId) === Number(playerRaw.playerId)) {
+          player.playerCards.push(playerRaw.cards[0]);
+          player.playerCards.push(playerRaw.cards[1]);
+          player.playerCards.push(playerRaw.cards[2]);
+          player.playerCards.push(playerRaw.cards[3]);
+          player.playerCards.push(playerRaw.cards[4]);
+          player.setPuffInFastEnabled(true);
+        }
+      }
+    }
+    for (let c = 0; c < 5; c++) {
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        if (!player.isFold) {
+          await sleep(100);
+          player.setPlayerCard(c);
+          setSeats({ data: seats.data });
+          if (enableSoundsRef.current) {
+            playCardSlideSix.play();
+          }
+        }
+      }
+    }
+  }
+
+  const discardAndDraw = (ddData) => {
+    const cards = ddData.cards;
+    const timeLeft = Number(ddData.timeLeft);
+    if (!autoPlayRef.current && !autoCheckRef.current) {
+      openModal(
+        () => (
+          <FCDPickCardsModal
+            cards={{ cards }}
+            timeLeft={timeLeft}
+            onCardsSelected={(selectedCards) => {
+              handleSelectedCards(selectedCards);
+              closeModal();
+            }}
+          />
+        ),
+        t('CHOOSE_CARDS_TO_CHANGE'),
+        true,
+        false,
+        t('CONTINUE')
+      );
+    }
+  };
+
+  const handleSelectedCards = (selected) => {
+    console.log(`Selected cards ${selected} for table ${tableIdRef.current}`);
+    if (socket) {
+      const data = JSON.stringify({
+        key: 'discardAndDraw',
+        tableId: tableIdRef.current,
+        cardsToDiscard: selected,
+      });
+      socket.send(data);
+    } else {
+      toast.error(t('INVALID_SOCKET') || '连接无效');
+    }
+  };
+
+  async function newPlayerCards(ncData) {
+    // {"playerId": 1, "cards":["3♥","4♠","8♠","10♣","4♣"]}
+    const players = tempPlayers;
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      if (Number(player.playerId) === Number(ncData.playerId)) {
+        player.playerCards = [];
+        player.setPuffInFastEnabled(true);
+        ncData.cards.forEach((c, i) => {
+          player.playerCards.push(c);
+          player.setPlayerCard(i);
+        });
+        setSeats({ data: seats.data });
+        if (enableSoundsRef.current) {
+          playCardSlideSix.play();
+        }
+      }
+    }
+  }
+
+  // ----------------------------------------------------
+
+  return (
+    <TableContext.Provider
+      value={{
+        tableId,
+        setTableId,
+        players,
+        setPlayers,
+        heroTurn,
+        setHeroTurn,
+        enableSounds,
+        setEnableSounds,
+        actionButtonsEnabled,
+        setActionButtonsEnabled,
+        autoPlay,
+        setAutoPlay,
+        autoCheck,
+        setAutoCheck,
+        board,
+        setBoard,
+        roomInfo,
+        setRoomInfo,
+        ctrl,
+        setCtrl,
+        seats,
+        setSeats,
+        refreshSeats,
+        roundSettlement,
+        settlementEffectVisible,
+      }}
+    >
+      {children}
+    </TableContext.Provider>
+  );
+};
+
+export default TableState;
