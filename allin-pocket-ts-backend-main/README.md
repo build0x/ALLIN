@@ -1,77 +1,42 @@
-![poker_pocket_promo](./poker_pocket.png)
+# ALLIN 后端 (TypeScript)
 
-# Poker Pocket Typescript Backend
+ALLIN 扑克平台后端服务，支持多游戏（德州扑克、五张抽牌、转瓶等）、锦标赛与 BSC 链上经济。轻量设计，可支撑大量房间。
 
-Nitramite Poker Pocket back end server was developed to run poker games. It's powering
-[Nitramite Poker Pocket game](https://pokerpocket.nitramite.com/). This back end is pretty lightweight
-and can run thousands of rooms easily.
+- **仓库**: [github.com/build0x/ALLIN](https://github.com/build0x/ALLIN)（本后端位于 `allin-pocket-ts-backend-main`）
+- **官网**: [allin-bsc.xyz](https://allin-bsc.xyz/)
 
-This ts version replaces old js version https://github.com/norkator/poker-pocket-backend.
+### 前置条件
 
-### Testing it out
+* 下载 `handRanks.dat`：  
+  [christophschmalhofer/poker - HandRanks.dat](https://github.com/christophschmalhofer/poker/blob/master/XPokerEval/XPokerEval.TwoPlusTwo/HandRanks.dat)  
+  放入本项目的 `/src` 目录。
 
-Current staging: https://pokerpocket-staging.nitramite.com  
-Current production: https://pokerpocket.nitramite.com
+### 基本配置
 
-Android client (production): https://play.google.com/store/apps/details?id=com.nitramite.pokerpocket
+1. 创建数据库（如 `poker-pocket-ts`），或通过环境变量 `DB_NAME` 指定库名。
+2. 在数据库中新增 schema：`poker`。
+3. 配置环境变量，例如：
+   ```
+   DB_HOST=<value>
+   DB_USER=<value>
+   DB_PASS=<value>
+   DB_NAME=<value，默认 poker-pocket-ts>
+   ```
+4. 配置密钥：
+   * `PW_SECRET=<value>`（可用 `npm run secret` 生成）
+   * `PW_REFRESH_SECRET=<value>`（同上）
+5. 执行 `npm install`
+6. 开发环境运行：`npm run start:dev`（使用 nodemon）
+7. 前端可配合本仓库中的 `allin-pocket-react-client-main` 使用。
 
-Get following front end client:
+### AI 扩展
 
-* React Web UI: https://pokerpocket-staging.nitramite.com
-    * React Web UI source code: https://github.com/norkator/poker-pocket-react-client
+* 本仓库内：`Allin-pocket-AI-Provider-Main`
 
-### Prerequisites
+### 说明
 
-* Download handRanks.dat file
-  from: [https://github.com/christophschmalhofer/poker/blob/master/XPokerEval/XPokerEval.TwoPlusTwo/HandRanks.dat](https://github.com/christophschmalhofer/poker/blob/master/XPokerEval/XPokerEval.TwoPlusTwo/HandRanks.dat)  
-  and place it under `/src` folder.
-
-### Basic setup
-
-1. Create database named `poker-pocket-ts` or define your own db name by setting env var `DB_NAME`
-2. Add new schema into database called `poker`
-3. Define and fill rest of env vars
-    ```
-    DB_HOST=<value>
-    DB_USER=<value>
-    DB_PASS=<value>
-    DB_NAME=<value, by default poker-pocket-ts>
-    ```
-4. Define secrets
-    * Define env var `PW_SECRET=<value>` and get value using `npm run secret`
-    * Define env var `PW_REFRESH_SECRET=<value>` and get value using `npm run secret`
-5. Run `npm install`
-6. Run `npm run start:dev` on development environment (uses nodemon)
-7. Backend is now running.
-8. Set up frontend https://github.com/norkator/poker-pocket-react-client
-
-### AI LLM Addon
-
-* https://github.com/norkator/poker-pocket-ai-provider
-
-### Note
-
-`.gitignore` file is set to ignore `HandRanks.dat` which is big file.
-
-## Authors
-
-* **Martin Kankaanranta** - *Initial work* - [norkator](https://github.com/norkator)
-
-## Contributors
-
-None for ts version.
-
-For old js version which this repository is based:
-
-### [shrpne](https://github.com/shrpne)
-
-* [Commits](https://github.com/norkator/poker-pocket-backend/commits?author=shrpne)
-
-### [linus2code](https://github.com/linus2code)
-
-* [Commits](https://github.com/norkator/poker-pocket-backend/commits?author=linus2code)
-* Created [React version](https://github.com/linus2code/poker-pocket-react-client) of Web UI
+`.gitignore` 已忽略大文件 `HandRanks.dat`，需按上文手动下载放置。
 
 ## License
 
-MIT
+MIT © [build0x](https://github.com/build0x)
